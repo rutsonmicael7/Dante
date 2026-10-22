@@ -13,7 +13,6 @@ jobs:
           mkdir -p app/src/main/res/values
           cat > gradle.properties << 'EOF'
           android.useAndroidX=true
-          android.enableJetifier=true
           EOF
           cat > settings.gradle << 'EOF'
           include ':app'
@@ -34,20 +33,18 @@ jobs:
           android {
             namespace 'com.rutson.dante'
             compileSdk 34
-            defaultConfig { applicationId "com.rutson.dante"; minSdk 26; targetSdk 34; versionCode 1; versionName "0.2.0" }
+            defaultConfig { applicationId "com.rutson.dante"; minSdk 26; targetSdk 34; versionCode 2; versionName "0.2.1" }
             compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
             kotlinOptions { jvmTarget = "17" }
           }
           dependencies {
             implementation 'androidx.core:core-ktx:1.12.0'
-            implementation 'androidx.appcompat:appcompat:1.6.1'
-            implementation 'com.google.android.material:material:1.11.0'
           }
           EOF
           cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:allowBackup="true" android:label="Dante">
+              <application android:allowBackup="true" android:label="Dante" android:theme="@android:style/Theme.Material.Light.NoActionBar">
                   <activity android:name=".MainActivity" android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
@@ -60,16 +57,18 @@ jobs:
           echo '<resources><string name="app_name">Dante</string></resources>' > app/src/main/res/values/strings.xml
           cat > app/src/main/java/com/rutson/dante/MainActivity.kt << 'EOF'
           package com.rutson.dante
+          import android.app.Activity
           import android.os.Bundle
-          import androidx.appcompat.app.AppCompatActivity
           import android.widget.TextView
-          class MainActivity : AppCompatActivity() {
+          import android.view.Gravity
+          class MainActivity : Activity() {
             override fun onCreate(savedInstanceState: Bundle?) {
               super.onCreate(savedInstanceState)
               val tv = TextView(this)
-              tv.text = "DANTE P0 COMPILOU! 🎉\n\nAgora vamos pro chat offline"
-              tv.textSize = 20f
-              tv.setPadding(50, 250, 50, 50)
+              tv.text = "DANTE P0 - FUNCIONOU! 🎉\n\nParabens Rutson, o app abriu!\n\nAgora vamos adicionar:\n1. Chat real\n2. Modelo Qwen3-4B offline (2.5GB)\n3. Hardware info do seu POCO X6 Pro"
+              tv.textSize = 18f
+              tv.setPadding(60, 200, 60, 60)
+              tv.gravity = Gravity.CENTER
               setContentView(tv)
             }
           }
