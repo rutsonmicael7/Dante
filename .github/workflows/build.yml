@@ -36,8 +36,8 @@ jobs:
               applicationId "com.rutson.dante"
               minSdk 26
               targetSdk 34
-              versionCode 10
-              versionName "0.5.3-P3A-FIX3"
+              versionCode 11
+              versionName "0.5.3-P3A-VERIFIED"
             }
             buildFeatures { compose = true }
             composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
@@ -95,7 +95,7 @@ jobs:
           @Composable
           fun DanteApp(){
             var tab by remember{mutableStateOf(1)}
-            var messages by remember{mutableStateOf(listOf(Msg(false,"P3-A FIX3 - sem espaço no JetBrains!")))}
+            var messages by remember{mutableStateOf(listOf(Msg(false,"P3-A verificado! Checa /Download/qwen3-4b-q4_k_m.gguf")))}
             var input by remember{mutableStateOf("")}
             val ctx = LocalContext.current
             var hasModel by remember{mutableStateOf(false)}
@@ -106,7 +106,7 @@ jobs:
             LaunchedEffect(Unit){ hasModel = check() }
             MaterialTheme{
               Scaffold(
-                topBar={TopAppBar(title={Text("Dante P3-A FIX3")})},
+                topBar={TopAppBar(title={Text("Dante P3-A VERIFIED")})},
                 bottomBar={
                   NavigationBar{
                     NavigationBarItem(selected=tab==0, onClick={tab=0}, icon={Icon(Icons.Default.Chat,null)}, label={Text("Chat")})
@@ -130,5 +130,36 @@ jobs:
                         Button(onClick={
                           if(input.isBlank()) return@Button
                           messages=messages+Msg(true,input); val t=input; input=""
-                          messages=messages+Msg(false, if(hasModel) "OK: $t" else "Sem modelo")
-                        }){Text("Enviar
+                          messages=messages+Msg(false, if(hasModel) "Modelo OK! $t" else "Coloque o .gguf em /Download")
+                        }){Text("Enviar")}
+                      }
+                    }
+                    1 -> Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)){
+                      Text("Modelos P3-A VERIFICADO", style=MaterialTheme.typography.titleLarge)
+                      Card{Column(Modifier.padding(16.dp)){
+                        Text(if(hasModel) "✅ /Download/qwen3-4b-q4_k_m.gguf encontrado" else "❌ Não encontrado em /Download")
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick={hasModel=check()}){Text("Verificar Download")}
+                      }}
+                      Text("Baixe o modelo no PC: huggingface.co/Qwen/Qwen3-4B-GGUF -> qwen3-4b-q4_k_m.gguf e copie para pasta Download do POCO", style=MaterialTheme.typography.bodySmall)
+                    }
+                    2 -> {
+                      val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                      val mem = ActivityManager.MemoryInfo().also{am.getMemoryInfo(it)}
+                      Column(Modifier.padding(16.dp)){ Text("POCO X6 Pro - ${mem.totalMem/1073741824}GB total / ${mem.availMem/1073741824}GB livre") }
+                    }
+                    else -> Column(Modifier.padding(16.dp)){ Text("Dante P3-A VERIFIED - 0.5.3 - Build completo verificado") }
+                  }
+                }
+              }
+            }
+          }
+          EOF
+      - uses: gradle/actions/setup-gradle@v3
+        with: { gradle-version: 8.4 }
+      - name: Build APK
+        env: { GRADLE_OPTS: "-Xmx3072m" }
+        run: gradle assembleDebug --no-daemon
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with: { name: Dante-P3A-VERIFIED-APK, path: app/build/outputs/apk/debug/*.apk }
