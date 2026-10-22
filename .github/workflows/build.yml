@@ -1,4 +1,4 @@
-name: Build Dante P2.1
+name: Build Dante P3-A Downloader
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -7,21 +7,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { java-version: '17', distribution: 'temurin' }
-      - name: Criar Dante P2.1
+      - name: Criar Dante P3-A
         run: |
           mkdir -p app/src/main/java/com/rutson/dante/ui
           mkdir -p app/src/main/res/values
-          
           cat > gradle.properties << 'EOF'
           org.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8
-          org.gradle.parallel=true
           android.useAndroidX=true
           EOF
-
           cat > settings.gradle << 'EOF'
           include ':app'
           EOF
-
           cat > build.gradle << 'EOF'
           buildscript {
             repositories { google(); mavenCentral() }
@@ -32,7 +28,6 @@ jobs:
           }
           allprojects { repositories { google(); mavenCentral() } }
           EOF
-
           cat > app/build.gradle << 'EOF'
           apply plugin: 'com.android.application'
           apply plugin: 'org.jetbrains.kotlin.android'
@@ -43,8 +38,8 @@ jobs:
               applicationId "com.rutson.dante"
               minSdk 26
               targetSdk 34
-              versionCode 6
-              versionName "0.4.2-P2.1-fix"
+              versionCode 7
+              versionName "0.5.0-P3A"
             }
             buildFeatures { compose = true }
             composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
@@ -58,13 +53,15 @@ jobs:
             implementation 'androidx.compose.ui:ui'
             implementation 'androidx.compose.material3:material3'
             implementation 'androidx.compose.material:material-icons-extended'
+            implementation 'com.squareup.okhttp3:okhttp:4.12.0'
           }
           EOF
-
           cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <application android:allowBackup="true" android:label="Dante" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+            <application android:allowBackup="true" android:label="Dante" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:requestLegacyExternalStorage="true">
               <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN" />
@@ -74,108 +71,9 @@ jobs:
             </application>
           </manifest>
           EOF
-
           echo '<resources><string name="app_name">Dante</string></resources>' > app/src/main/res/values/strings.xml
-
           cat > app/src/main/java/com/rutson/dante/MainActivity.kt << 'EOF'
           package com.rutson.dante
           import android.os.Bundle
           import androidx.activity.ComponentActivity
-          import androidx.activity.compose.setContent
-          import com.rutson.dante.ui.DanteApp
-          class MainActivity : ComponentActivity() {
-            override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { DanteApp() } }
-          }
-          EOF
-
-          cat > app/src/main/java/com/rutson/dante/ui/DanteApp.kt << 'EOF'
-          package com.rutson.dante.ui
-          import android.app.ActivityManager
-          import android.content.Context
-          import androidx.compose.foundation.layout.*
-          import androidx.compose.foundation.lazy.LazyColumn
-          import androidx.compose.foundation.lazy.items
-          import androidx.compose.foundation.shape.RoundedCornerShape
-          import androidx.compose.material3.*
-          import androidx.compose.material.icons.Icons
-          import androidx.compose.material.icons.filled.*
-          import androidx.compose.runtime.*
-          import androidx.compose.ui.Alignment
-          import androidx.compose.ui.Modifier
-          import androidx.compose.ui.platform.LocalContext
-          import androidx.compose.ui.unit.dp
-          data class Msg(val fromUser: Boolean, val text: String)
-          @OptIn(ExperimentalMaterial3Api::class)
-          @Composable
-          fun DanteApp(){
-            var tab by remember{mutableStateOf(0)}
-            var messages by remember{mutableStateOf(listOf(Msg(false,"Dante P2.1 com memória corrigida! Esse já gera APK.")))}
-            var input by remember{mutableStateOf("")}
-            var modelReady by remember{mutableStateOf(false)}
-            val context = LocalContext.current
-            MaterialTheme{
-              Scaffold(
-                topBar={TopAppBar(title={Text("Dante • P2.1")})},
-                bottomBar={
-                  NavigationBar{
-                    NavigationBarItem(selected=tab==0, onClick={tab=0}, icon={Icon(Icons.Default.Chat,null)}, label={Text("Chat")})
-                    NavigationBarItem(selected=tab==1, onClick={tab=1}, icon={Icon(Icons.Default.Memory,null)}, label={Text("Modelos")})
-                    NavigationBarItem(selected=tab==2, onClick={tab=2}, icon={Icon(Icons.Default.Speed,null)}, label={Text("Hardware")})
-                    NavigationBarItem(selected=tab==3, onClick={tab=3}, icon={Icon(Icons.Default.Settings,null)}, label={Text("Config")})
-                  }
-                }
-              ){ pad ->
-                Box(Modifier.padding(pad).fillMaxSize()){
-                  when(tab){
-                    0 -> Column(Modifier.fillMaxSize()){
-                      LazyColumn(Modifier.weight(1f).padding(12.dp), reverseLayout=true){ items(messages.reversed()){ m ->
-                        Row(Modifier.fillMaxWidth().padding(vertical=4.dp), horizontalArrangement=if(m.fromUser) Arrangement.End else Arrangement.Start){
-                          Surface(shape=RoundedCornerShape(16.dp), color=if(m.fromUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant){
-                            Text(m.text, Modifier.padding(12.dp))
-                          }
-                        }
-                      }}
-                      Row(Modifier.padding(8.dp).fillMaxWidth(), verticalAlignment=Alignment.CenterVertically){
-                        OutlinedTextField(value=input, onValueChange={input=it}, modifier=Modifier.weight(1f), placeholder={Text("Fala...")})
-                        Spacer(Modifier.width(8.dp))
-                        Button(onClick={
-                          if(input.isBlank()) return@Button
-                          messages=messages+Msg(true,input)
-                          val t=input; input=""
-                          messages=messages+Msg(false, if(modelReady) "P2.1 offline: '$t' ✅" else "Ative o modelo em Modelos!")
-                        }){Text("Enviar")}
-                      }
-                    }
-                    1 -> Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)){
-                      Text("Modelos Offline", style=MaterialTheme.typography.titleLarge)
-                      Card{Column(Modifier.padding(16.dp)){
-                        Text("Qwen3-4B Q4_K_M • 2.5GB")
-                        Button(onClick={modelReady=true}){Text(if(modelReady) "✅ Ativo" else "Ativar")}
-                      }}
-                    }
-                    2 -> {
-                      val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                      val mem = ActivityManager.MemoryInfo().also{am.getMemoryInfo(it)}
-                      Column(Modifier.padding(16.dp)){
-                        Text("POCO X6 Pro - ${mem.totalMem/1073741824}GB total, ${mem.availMem/1073741824}GB livre")
-                      }
-                    }
-                    else -> Column(Modifier.padding(16.dp)){Text("Dante P2.1 fix memória - 3GB heap")}
-                  }
-                }
-              }
-            }
-          }
-          EOF
-
-      - uses: gradle/actions/setup-gradle@v3
-        with: { gradle-version: 8.4 }
-
-      - name: Build APK
-        env:
-          GRADLE_OPTS: "-Xmx3072m -Dorg.gradle.jvmargs='-Xmx3072m'"
-        run: gradle assembleDebug --no-daemon
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with: { name: Dante-P2-1-FIX-APK, path: app/build/outputs/apk/debug/*.apk }
+          import androidx.activity
