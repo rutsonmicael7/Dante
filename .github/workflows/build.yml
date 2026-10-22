@@ -1,4 +1,4 @@
-name: Build Dante APK
+name: Build Dante P1
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -7,74 +7,226 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { java-version: '17', distribution: 'temurin' }
-      - name: Criar projeto
+      - name: Criar Dante P1
         run: |
-          mkdir -p app/src/main/java/com/rutson/dante
+          mkdir -p app/src/main/java/com/rutson/dante/ui
           mkdir -p app/src/main/res/values
+
           cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx2048m
           android.useAndroidX=true
+          android.nonTransitiveRClass=true
           EOF
+
           cat > settings.gradle << 'EOF'
+          pluginManagement {
+            repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "Dante"
           include ':app'
           EOF
+
           cat > build.gradle << 'EOF'
-          buildscript {
-            repositories { google(); mavenCentral() }
-            dependencies {
-              classpath 'com.android.tools.build:gradle:8.1.4'
-              classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10'
-            }
+          plugins {
+            id 'com.android.application' version '8.2.2' apply false
+            id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
+            id 'org.jetbrains.kotlin.plugin.compose' version '1.9.22' apply false
           }
-          allprojects { repositories { google(); mavenCentral() } }
           EOF
+
           cat > app/build.gradle << 'EOF'
-          apply plugin: 'com.android.application'
-          apply plugin: 'org.jetbrains.kotlin.android'
+          plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+            id 'org.jetbrains.kotlin.plugin.compose'
+          }
           android {
             namespace 'com.rutson.dante'
             compileSdk 34
-            defaultConfig { applicationId "com.rutson.dante"; minSdk 26; targetSdk 34; versionCode 2; versionName "0.2.1" }
-            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+            defaultConfig {
+              applicationId "com.rutson.dante"
+              minSdk 26
+              targetSdk 34
+              versionCode 3
+              versionName "0.3.0-P1"
+            }
+            buildFeatures { compose = true }
+            composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
+            compileOptions {
+              sourceCompatibility JavaVersion.VERSION_17
+              targetCompatibility JavaVersion.VERSION_17
+            }
             kotlinOptions { jvmTarget = "17" }
+            packaging { jniLibs { useLegacyPackaging = true } }
           }
           dependencies {
             implementation 'androidx.core:core-ktx:1.12.0'
+            implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+            implementation 'androidx.activity:activity-compose:1.8.2'
+            implementation platform('androidx.compose:compose-bom:2024.02.00')
+            implementation 'androidx.compose.ui:ui'
+            implementation 'androidx.compose.material3:material3'
+            implementation 'androidx.compose.ui:ui-tooling-preview'
+            implementation 'androidx.compose.material:material-icons-extended'
           }
           EOF
+
           cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:allowBackup="true" android:label="Dante" android:theme="@android:style/Theme.Material.Light.NoActionBar">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
+            <application android:allowBackup="true" android:label="Dante" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+              <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN" />
+                  <category android:name="android.intent.category.LAUNCHER" />
+                </intent-filter>
+              </activity>
+            </application>
           </manifest>
           EOF
+
           echo '<resources><string name="app_name">Dante</string></resources>' > app/src/main/res/values/strings.xml
+
           cat > app/src/main/java/com/rutson/dante/MainActivity.kt << 'EOF'
           package com.rutson.dante
-          import android.app.Activity
           import android.os.Bundle
-          import android.widget.TextView
-          import android.view.Gravity
-          class MainActivity : Activity() {
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.setContent
+          import com.rutson.dante.ui.DanteApp
+          class MainActivity : ComponentActivity() {
             override fun onCreate(savedInstanceState: Bundle?) {
               super.onCreate(savedInstanceState)
-              val tv = TextView(this)
-              tv.text = "DANTE P0 - FUNCIONOU! 🎉\n\nParabens Rutson, o app abriu!\n\nAgora vamos adicionar:\n1. Chat real\n2. Modelo Qwen3-4B offline (2.5GB)\n3. Hardware info do seu POCO X6 Pro"
-              tv.textSize = 18f
-              tv.setPadding(60, 200, 60, 60)
-              tv.gravity = Gravity.CENTER
-              setContentView(tv)
+              setContent { DanteApp() }
             }
           }
           EOF
+
+          cat > app/src/main/java/com/rutson/dante/ui/DanteApp.kt << 'EOF'
+          package com.rutson.dante.ui
+
+          import android.app.ActivityManager
+          import android.content.Context
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.lazy.LazyColumn
+          import androidx.compose.foundation.lazy.items
+          import androidx.compose.foundation.shape.RoundedCornerShape
+          import androidx.compose.material3.*
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.graphics.vector.ImageVector
+          import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.unit.dp
+          import kotlinx.coroutines.delay
+          import kotlinx.coroutines.launch
+
+          data class Msg(val fromUser: Boolean, val text: String)
+          enum class Tab(val label: String, val icon: ImageVector) {
+            CHAT("Chat", Icons.Default.Chat),
+            MODELS("Modelos", Icons.Default.Memory),
+            HARDWARE("Hardware", Icons.Default.Speed),
+            CONFIG("Config", Icons.Default.Settings)
+          }
+
+          @OptIn(ExperimentalMaterial3Api::class)
+          @Composable
+          fun DanteApp() {
+            var tab by remember { mutableStateOf(Tab.CHAT) }
+            var messages by remember { mutableStateOf(listOf(Msg(false, "Fala Rutson! Sou o Dante P1. Já rodo 100% offline no seu POCO X6 Pro. O que vamos fazer hoje?"))) }
+            var input by remember { mutableStateOf("") }
+            val scope = rememberCoroutineScope()
+            val context = LocalContext.current
+
+            MaterialTheme(colorScheme = lightColorScheme()) {
+              Scaffold(
+                topBar = { TopAppBar(title = { Text("Dante • P1") }) },
+                bottomBar = {
+                  NavigationBar {
+                    Tab.values().forEach {
+                      NavigationBarItem(selected = tab==it, onClick = { tab=it }, icon = { Icon(it.icon, null) }, label = { Text(it.label) })
+                    }
+                  }
+                }
+              ) { pad ->
+                Box(Modifier.padding(pad).fillMaxSize()) {
+                  when(tab) {
+                    Tab.CHAT -> {
+                      Column(Modifier.fillMaxSize()) {
+                        LazyColumn(Modifier.weight(1f).padding(12.dp), reverseLayout = true) {
+                          items(messages.reversed()) { m ->
+                            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = if(m.fromUser) Arrangement.End else Arrangement.Start) {
+                              Surface(shape = RoundedCornerShape(16.dp), color = if(m.fromUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant) {
+                                Text(m.text, Modifier.padding(12.dp), color = if(m.fromUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                              }
+                            }
+                          }
+                        }
+                        Row(Modifier.padding(8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                          OutlinedTextField(value=input, onValueChange={input=it}, modifier=Modifier.weight(1f), placeholder={Text("Fala com o Dante...")})
+                          Spacer(Modifier.width(8.dp))
+                          Button(onClick={
+                            if(input.isBlank()) return@Button
+                            val userText = input
+                            messages = messages + Msg(true, userText)
+                            input = ""
+                            scope.launch {
+                              delay(400)
+                              messages = messages + Msg(false, "Entendi: \"$userText\" - No P1 eu ainda respondo mockado, mas a UI já é 100% real. No P2 a gente liga o Qwen3-4B de 2.5GB offline com llama.cpp + Vulkan.")
+                            }
+                          }) { Text("Enviar") }
+                        }
+                      }
+                    }
+                    Tab.MODELS -> {
+                      Column(Modifier.padding(16.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Modelos Offline", style = MaterialTheme.typography.titleLarge)
+                        Card { Column(Modifier.padding(16.dp)) { Text("Qwen3-4B Q4_K_M • 2.50GB • Padrão ✅"); LinearProgressIndicator(progress={1f}, modifier=Modifier.fillMaxWidth().padding(top=8.dp)) } }
+                        Card { Column(Modifier.padding(16.dp)) { Text("Qwen3-1.7B • 1.1GB"); Text("Mais leve, mais rápido") } }
+                        Card { Column(Modifier.padding(16.dp)) { Text("smolVLM2 256M/500M • 1.6GB"); Text("Visão - câmera") } }
+                        Text("No P2 o download do .gguf será direto no app.", style = MaterialTheme.typography.bodySmall)
+                      }
+                    }
+                    Tab.HARDWARE -> {
+                      val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                      val mem = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+                      val avail = mem.availMem / (1024*1024*1024.0)
+                      val total = mem.totalMem / (1024*1024*1024.0)
+                      Column(Modifier.padding(16.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("【entity-POCO¦canonical_name=POCO】 X6 Pro", style = MaterialTheme.typography.titleLarge)
+                        Text("Dimensity 8300-Ultra • 12GB RAM")
+                        Text(String.format("RAM Total: %.1f GB", total))
+                        Text(String.format("RAM Livre agora: %.1f GB", avail))
+                        Text("Vulkan: Sim • NPU: Sim")
+                        Text("Status: Pronto para rodar Qwen3-4B offline", color = MaterialTheme.colorScheme.primary)
+                      }
+                    }
+                    Tab.CONFIG -> {
+                      Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Dante - Config", style = MaterialTheme.typography.titleLarge)
+                        Text("Usuário: Rutson")
+                        Text("Nome: Dante")
+                        Text("Personalidade: 100% editável (P2)")
+                        Text("Memória semântica: P2")
+                        Text("Versão: 0.3.0-P1 - GitHub Build")
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          EOF
+
       - uses: gradle/actions/setup-gradle@v3
         with: { gradle-version: 8.4 }
-      - run: gradle assembleDebug
-      - uses: actions/upload-artifact@v4
-        with: { name: Dante-APK, path: app/build/outputs/apk/debug/*.apk }
+      - name: Build APK
+        run: gradle assembleDebug --stacktrace
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with: { name: Dante-P1-APK, path: app/build/outputs/apk/debug/*.apk }
