@@ -1,27 +1,25 @@
 name: Build Dante APK
-
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
+on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Criar projeto Dante (corrigido)
+      - name: Criar projeto Dante
         run: |
-          rm -rf app
           mkdir -p app/src/main/java/com/rutson/dante
           mkdir -p app/src/main/res/values
+          
+          cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx2048m
+          android.useAndroidX=true
+          android.enableJetifier=true
+          EOF
 
           cat > settings.gradle << 'EOF'
           include ':app'
@@ -29,27 +27,18 @@ jobs:
 
           cat > build.gradle << 'EOF'
           buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+              repositories { google(); mavenCentral() }
               dependencies {
                   classpath 'com.android.tools.build:gradle:8.1.4'
                   classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10'
               }
           }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
+          allprojects { repositories { google(); mavenCentral() } }
           EOF
 
           cat > app/build.gradle << 'EOF'
           apply plugin: 'com.android.application'
           apply plugin: 'org.jetbrains.kotlin.android'
-
           android {
               namespace 'com.rutson.dante'
               compileSdk 34
@@ -64,11 +53,8 @@ jobs:
                   sourceCompatibility JavaVersion.VERSION_17
                   targetCompatibility JavaVersion.VERSION_17
               }
-              kotlinOptions {
-                  jvmTarget = "17"
-              }
+              kotlinOptions { jvmTarget = "17" }
           }
-
           dependencies {
               implementation 'androidx.core:core-ktx:1.12.0'
               implementation 'androidx.appcompat:appcompat:1.6.1'
@@ -90,9 +76,7 @@ jobs:
           </manifest>
           EOF
 
-          cat > app/src/main/res/values/strings.xml << 'EOF'
-          <resources><string name="app_name">Dante</string></resources>
-          EOF
+          echo '<resources><string name="app_name">Dante</string></resources>' > app/src/main/res/values/strings.xml
 
           cat > app/src/main/java/com/rutson/dante/MainActivity.kt << 'EOF'
           package com.rutson.dante
@@ -103,22 +87,18 @@ jobs:
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
                   val tv = TextView(this)
-                  tv.text = "Dante P0 - Compilou! Agora vamos adicionar chat offline com Qwen3-4B"
-                  tv.textSize = 20f
-                  tv.setPadding(50, 200, 50, 50)
+                  tv.text = "Dante P0 COMPILOU! \n\nProximo passo: chat offline"
+                  tv.textSize = 22f
+                  tv.setPadding(50, 250, 50, 50)
                   setContentView(tv)
               }
           }
           EOF
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: 8.4
-
+      - uses: gradle/actions/setup-gradle@v3
+        with: { gradle-version: 8.4 }
       - name: Build APK
-        run: gradle assembleDebug --stacktrace
-
+        run: gradle assembleDebug
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
