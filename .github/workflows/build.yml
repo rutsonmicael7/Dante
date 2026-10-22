@@ -17,101 +17,109 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Criar projeto Dante
+      - name: Criar projeto Dante (corrigido)
         run: |
-          mkdir -p app/src/main/java/com/rutson/dante/ui
+          rm -rf app
+          mkdir -p app/src/main/java/com/rutson/dante
           mkdir -p app/src/main/res/values
-          
+
           cat > settings.gradle << 'EOF'
           include ':app'
           EOF
 
+          cat > build.gradle << 'EOF'
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.4'
+                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+
           cat > app/build.gradle << 'EOF'
-          plugins {
-            id 'com.android.application'
-            id 'org.jetbrains.kotlin.android'
-          }
+          apply plugin: 'com.android.application'
+          apply plugin: 'org.jetbrains.kotlin.android'
+
           android {
-            namespace 'com.rutson.dante'
-            compileSdk 34
-            defaultConfig {
-              applicationId "com.rutson.dante"
-              minSdk 26
-              targetSdk 34
-              versionCode 1
-              versionName "0.2.0"
-            }
-            compileOptions {
-              sourceCompatibility JavaVersion.VERSION_17
-              targetCompatibility JavaVersion.VERSION_17
-            }
-            kotlinOptions { jvmTarget = "17" }
+              namespace 'com.rutson.dante'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.rutson.dante"
+                  minSdk 26
+                  targetSdk 34
+                  versionCode 1
+                  versionName "0.2.0"
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
           }
+
           dependencies {
-            implementation 'androidx.core:core-ktx:1.12.0'
-            implementation 'androidx.compose.ui:ui:1.5.8'
-            implementation 'androidx.compose.material3:material3:1.1.2'
-            implementation 'androidx.activity:activity-compose:1.8.2'
+              implementation 'androidx.core:core-ktx:1.12.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
           }
           EOF
 
           cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com">
-            <application android:allowBackup="true">
-              <activity android:name=".MainActivity" android:exported="true">
-                <intent-filter>
-                  <action android:name="android.intent.action.MAIN"/>
-                  <category android:name="android.intent.category.LAUNCHER"/>
-                </intent-filter>
-              </activity>
-            </application>
+              <application android:allowBackup="true" android:label="Dante">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
           </manifest>
           EOF
 
-          mkdir -p app/src/main/java/com/rutson/dante
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <resources><string name="app_name">Dante</string></resources>
+          EOF
+
           cat > app/src/main/java/com/rutson/dante/MainActivity.kt << 'EOF'
           package com.rutson.dante
           import android.os.Bundle
-          import androidx.activity.ComponentActivity
-          import androidx.activity.compose.setContent
-          import androidx.compose.material3.*
-          import androidx.compose.foundation.layout.*
-          import androidx.compose.runtime.*
-          import androidx.compose.ui.Modifier
-          import androidx.compose.ui.unit.dp
-          class MainActivity : ComponentActivity() {
-            override fun onCreate(savedInstanceState: Bundle?) {
-              super.onCreate(savedInstanceState)
-              setContent {
-                MaterialTheme {
-                  var tab by remember { mutableStateOf(0) }
-                  Scaffold(bottomBar = {
-                    NavigationBar {
-                      NavigationBarItem(selected = tab==0, onClick = {tab=0}, label = {Text("Chat")}, icon = {Text("💬")})
-                      NavigationBarItem(selected = tab==1, onClick = {tab=1}, label = {Text("Modelos")}, icon = {Text("🧠")})
-                    }
-                  }) { pad ->
-                    Column(Modifier.padding(pad).padding(16.dp)) {
-                      Text("Dante P0 - Funcionando! Próximo passo: adicionar llama.cpp com Qwen3-4B offline")
-                    }
-                  }
-                }
+          import androidx.appcompat.app.AppCompatActivity
+          import android.widget.TextView
+          class MainActivity : AppCompatActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  val tv = TextView(this)
+                  tv.text = "Dante P0 - Compilou! Agora vamos adicionar chat offline com Qwen3-4B"
+                  tv.textSize = 20f
+                  tv.setPadding(50, 200, 50, 50)
+                  setContentView(tv)
               }
-            }
           }
           EOF
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.4
 
       - name: Build APK
-        run: |
-          chmod +x gradlew 2>/dev/null || gradle wrapper --gradle-version 8.4
-          ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload APK
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Dante-APK
