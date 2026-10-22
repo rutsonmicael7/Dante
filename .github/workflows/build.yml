@@ -21,14 +21,14 @@ jobs:
             repositories { google(); mavenCentral() }
             dependencies {
               classpath 'com.android.tools.build:gradle:8.1.4'
-              classpath 'org.【entity-jetbrains¦canonical_name=JetBrains】.kotlin:kotlin-gradle-plugin:1.9.22'
+              classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
             }
           }
           allprojects { repositories { google(); mavenCentral() } }
           EOF
           cat > app/build.gradle <<'EOF'
           apply plugin: 'com.android.application'
-          apply plugin: 'org.【entity-jetbrains¦canonical_name=JetBrains】.kotlin.android'
+          apply plugin: 'org.jetbrains.kotlin.android'
           android {
             namespace 'com.rutson.dante'
             compileSdk 34
@@ -36,8 +36,8 @@ jobs:
               applicationId "com.rutson.dante"
               minSdk 26
               targetSdk 34
-              versionCode 9
-              versionName "0.5.2-P3A-FIX2"
+              versionCode 10
+              versionName "0.5.3-P3A-FIX3"
             }
             buildFeatures { compose = true }
             composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
@@ -95,7 +95,7 @@ jobs:
           @Composable
           fun DanteApp(){
             var tab by remember{mutableStateOf(1)}
-            var messages by remember{mutableStateOf(listOf(Msg(false,"P3-A fix useAndroidX! Agora compila.")))}
+            var messages by remember{mutableStateOf(listOf(Msg(false,"P3-A FIX3 - sem espaço no JetBrains!")))}
             var input by remember{mutableStateOf("")}
             val ctx = LocalContext.current
             var hasModel by remember{mutableStateOf(false)}
@@ -106,7 +106,7 @@ jobs:
             LaunchedEffect(Unit){ hasModel = check() }
             MaterialTheme{
               Scaffold(
-                topBar={TopAppBar(title={Text("Dante P3-A FIX2")})},
+                topBar={TopAppBar(title={Text("Dante P3-A FIX3")})},
                 bottomBar={
                   NavigationBar{
                     NavigationBarItem(selected=tab==0, onClick={tab=0}, icon={Icon(Icons.Default.Chat,null)}, label={Text("Chat")})
@@ -131,31 +131,4 @@ jobs:
                           if(input.isBlank()) return@Button
                           messages=messages+Msg(true,input); val t=input; input=""
                           messages=messages+Msg(false, if(hasModel) "OK: $t" else "Sem modelo")
-                        }){Text("Enviar")}
-                      }
-                    }
-                    1 -> Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)){
-                      Text("Modelos P3-A", style=MaterialTheme.typography.titleLarge)
-                      Card{Column(Modifier.padding(16.dp)){
-                        Text("Qwen3-4B Q4_K_M • 2.5GB")
-                        Text(if(hasModel) "✅ Em /Download" else "❌ Não encontrado")
-                        Button(onClick={hasModel=check()}){Text("Verificar")}
-                      }}
-                    }
-                    2 -> {
-                      val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                      val mem = ActivityManager.MemoryInfo().also{am.getMemoryInfo(it)}
-                      Column(Modifier.padding(16.dp)){ Text("${mem.totalMem/1073741824}GB total") }
-                    }
-                    else -> Column(Modifier.padding(16.dp)){ Text("Dante P3-A FIX2 - useAndroidX=true") }
-                  }
-                }
-              }
-            }
-          }
-          EOF
-      - uses: gradle/actions/setup-gradle@v3
-        with: { gradle-version: 8.4 }
-      - name: Build APK
-        env: { GRADLE_OPTS: "-Xmx3072m" }
-        run: gradle assembleDebug --no-daemon
+                        }){Text("Enviar
