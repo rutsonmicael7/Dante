@@ -137,8 +137,7 @@ jobs:
               Scaffold(
                 topBar={
                   TopAppBar(
-                    title={ Text("$personaName • P3-B") },
-                    subtitle={ if(hasModel) Text(modelName ?: "Modelo OK", style=MaterialTheme.typography.bodySmall) else null }
+                    title={ Text("$personaName • P3-B - ${if(hasModel) modelName?.take(20) ?: "OK" else "Sem modelo"}") }
                   )
                 },
                 bottomBar={
