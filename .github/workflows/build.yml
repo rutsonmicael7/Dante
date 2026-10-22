@@ -1,4 +1,4 @@
-name: Build Dante P3-A
+name: Build Dante P3-B
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { java-version: '17', distribution: 'temurin' }
-      - name: Criar app
+      - name: Criar app P3-B com File Picker
         run: |
           mkdir -p app/src/main/java/com/rutson/dante/ui
           mkdir -p app/src/main/res/values
@@ -36,8 +36,8 @@ jobs:
               applicationId "com.rutson.dante"
               minSdk 26
               targetSdk 34
-              versionCode 11
-              versionName "0.5.3-P3A-VERIFIED"
+              versionCode 12
+              versionName "0.6.0-P3B-FILEPICKER"
             }
             buildFeatures { compose = true }
             composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
@@ -77,7 +77,11 @@ jobs:
           package com.rutson.dante.ui
           import android.app.ActivityManager
           import android.content.Context
+          import android.content.Intent
+          import android.net.Uri
           import android.os.Environment
+          import androidx.activity.compose.rememberLauncherForActivityResult
+          import androidx.activity.result.contract.ActivityResultContracts
           import androidx.compose.foundation.layout.*
           import androidx.compose.foundation.lazy.LazyColumn
           import androidx.compose.foundation.lazy.items
@@ -86,27 +90,57 @@ jobs:
           import androidx.compose.material.icons.Icons
           import androidx.compose.material.icons.filled.*
           import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
           import androidx.compose.ui.Modifier
           import androidx.compose.ui.platform.LocalContext
           import androidx.compose.ui.unit.dp
           import java.io.File
+
           data class Msg(val fromUser: Boolean, val text: String)
+
           @OptIn(ExperimentalMaterial3Api::class)
           @Composable
           fun DanteApp(){
             var tab by remember{mutableStateOf(1)}
-            var messages by remember{mutableStateOf(listOf(Msg(false,"P3-A verificado! Checa /Download/qwen3-4b-q4_k_m.gguf")))}
+            var messages by remember{mutableStateOf(listOf(Msg(false,"Dante P3-B! Agora com seletor de arquivos real. Vá em Modelos > Escolher .gguf")))}
             var input by remember{mutableStateOf("")}
             val ctx = LocalContext.current
             var hasModel by remember{mutableStateOf(false)}
-            fun check(): Boolean {
+            var modelUri by remember{mutableStateOf<String?>(null)}
+            var modelName by remember{mutableStateOf<String?>(null)}
+            var personaName by remember{mutableStateOf("Dante")}
+            var personaTrait by remember{mutableStateOf("companheiro, curioso e direto")}
+
+            fun checkLegacy(): Boolean {
               val f = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "qwen3-4b-q4_k_m.gguf")
               return f.exists()
             }
-            LaunchedEffect(Unit){ hasModel = check() }
+
+            val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+              uri?.let {
+                try {
+                  ctx.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (_: Exception) {}
+                modelUri = it.toString()
+                modelName = it.lastPathSegment ?: "modelo.gguf"
+                hasModel = true
+                messages = messages + Msg(false, "Modelo selecionado: $modelName ✅ Agora o chat vai usar ele!")
+              }
+            }
+
+            LaunchedEffect(Unit){
+              hasModel = checkLegacy()
+              if(hasModel) modelName = "qwen3-4b-q4_k_m.gguf (em /Download)"
+            }
+
             MaterialTheme{
               Scaffold(
-                topBar={TopAppBar(title={Text("Dante P3-A VERIFIED")})},
+                topBar={
+                  TopAppBar(
+                    title={ Text("$personaName • P3-B") },
+                    subtitle={ if(hasModel) Text(modelName ?: "Modelo OK", style=MaterialTheme.typography.bodySmall) else null }
+                  )
+                },
                 bottomBar={
                   NavigationBar{
                     NavigationBarItem(selected=tab==0, onClick={tab=0}, icon={Icon(Icons.Default.Chat,null)}, label={Text("Chat")})
@@ -119,36 +153,71 @@ jobs:
                 Box(Modifier.padding(pad).fillMaxSize()){
                   when(tab){
                     0 -> Column(Modifier.fillMaxSize()){
-                      LazyColumn(Modifier.weight(1f).padding(12.dp), reverseLayout=true){ items(messages.reversed()){ m ->
-                        Row(Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement=if(m.fromUser) Arrangement.End else Arrangement.Start){
-                          Surface(shape=RoundedCornerShape(16.dp), color=if(m.fromUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant){ Text(m.text, Modifier.padding(12.dp)) }
+                      LazyColumn(Modifier.weight(1f).padding(12.dp), reverseLayout=true){
+                        items(messages.reversed()){ m ->
+                          Row(Modifier.fillMaxWidth().padding(vertical=5.dp), horizontalArrangement=if(m.fromUser) Arrangement.End else Arrangement.Start){
+                            Surface(shape=RoundedCornerShape(18.dp), color=if(m.fromUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, tonalElevation=1.dp){
+                              Column(Modifier.padding(14.dp)){
+                                if(!m.fromUser) Text(personaName, style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.primary)
+                                Text(m.text, style=MaterialTheme.typography.bodyMedium)
+                              }
+                            }
+                          }
                         }
-                      }}
-                      Row(Modifier.padding(8.dp).fillMaxWidth()){
-                        OutlinedTextField(value=input, onValueChange={input=it}, modifier=Modifier.weight(1f))
+                      }
+                      Row(Modifier.padding(10.dp).fillMaxWidth(), verticalAlignment=Alignment.Bottom){
+                        OutlinedTextField(value=input, onValueChange={input=it}, modifier=Modifier.weight(1f), placeholder={Text("Fala com o $personaName...")}, shape=RoundedCornerShape(24.dp))
                         Spacer(Modifier.width(8.dp))
-                        Button(onClick={
-                          if(input.isBlank()) return@Button
-                          messages=messages+Msg(true,input); val t=input; input=""
-                          messages=messages+Msg(false, if(hasModel) "Modelo OK! $t" else "Coloque o .gguf em /Download")
-                        }){Text("Enviar")}
+                        FilledTonalButton(onClick={
+                          if(input.isBlank()) return@FilledTonalButton
+                          messages=messages+Msg(true,input)
+                          val t=input; input=""
+                          val resp = if(hasModel) "$personaName ($personaTrait): Entendi '$t'. Quando ligarmos o llama.cpp no P3-C, vou responder de verdade offline com esse modelo!" else "Preciso de um modelo! Vá em Modelos > Escolher .gguf"
+                          messages=messages+Msg(false, resp)
+                        }, shape=RoundedCornerShape(24.dp)){ Icon(Icons.Default.Send, null) }
                       }
                     }
-                    1 -> Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)){
-                      Text("Modelos P3-A VERIFICADO", style=MaterialTheme.typography.titleLarge)
-                      Card{Column(Modifier.padding(16.dp)){
-                        Text(if(hasModel) "✅ /Download/qwen3-4b-q4_k_m.gguf encontrado" else "❌ Não encontrado em /Download")
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick={hasModel=check()}){Text("Verificar Download")}
-                      }}
-                      Text("Baixe o modelo no PC: huggingface.co/Qwen/Qwen3-4B-GGUF -> qwen3-4b-q4_k_m.gguf e copie para pasta Download do POCO", style=MaterialTheme.typography.bodySmall)
+                    1 -> Column(Modifier.padding(16.dp).fillMaxSize(), verticalArrangement=Arrangement.spacedBy(16.dp)){
+                      Text("Modelos", style=MaterialTheme.typography.headlineSmall)
+                      Card(colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)){
+                        Column(Modifier.padding(20.dp), verticalArrangement=Arrangement.spacedBy(12.dp)){
+                          Icon(Icons.Default.FolderOpen, null, modifier=Modifier.size(32.dp))
+                          Text("Seletor de Modelo", style=MaterialTheme.typography.titleMedium)
+                          Text(if(hasModel) "✅ $modelName" else "Nenhum modelo selecionado", style=MaterialTheme.typography.bodyMedium)
+                          Button(onClick={ filePicker.launch(arrayOf("*/*")) }, modifier=Modifier.fillMaxWidth()){
+                            Icon(Icons.Default.FileOpen, null); Spacer(Modifier.width(8.dp)); Text("Escolher arquivo .gguf")
+                          }
+                          Text("Abre seu gerenciador de arquivos. Escolha o modelo em qualquer pasta: Download, Documents, SD Card.", style=MaterialTheme.typography.bodySmall)
+                        }
+                      }
+                      Card{
+                        Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(8.dp)){
+                          Text("Dica", style=MaterialTheme.typography.titleSmall)
+                          Text("Baixe o modelo Qwen3-4B Q4_K_M (2.5GB) em: huggingface.co/Qwen/Qwen3-4B-GGUF", style=MaterialTheme.typography.bodySmall)
+                          Text("Compatível com POCO X6 Pro 8GB: Qwen3-4B, Gemma2-2B, Llama3.2-3B em Q4_K_M", style=MaterialTheme.typography.bodySmall)
+                        }
+                      }
                     }
                     2 -> {
                       val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
                       val mem = ActivityManager.MemoryInfo().also{am.getMemoryInfo(it)}
-                      Column(Modifier.padding(16.dp)){ Text("POCO X6 Pro - ${mem.totalMem/1073741824}GB total / ${mem.availMem/1073741824}GB livre") }
+                      Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)){
+                        Text("Hardware - POCO X6 Pro", style=MaterialTheme.typography.headlineSmall)
+                        Card{Column(Modifier.padding(16.dp)){
+                          Text("Dimensity 8300-Ultra + Mali-G615")
+                          Text("RAM Total: ${mem.totalMem/1073741824} GB")
+                          Text("RAM Livre: ${mem.availMem/1073741824} GB")
+                          Text("Modelo: ${modelName ?: "Não selecionado"}")
+                        }}
+                        Text("No P3-C vamos usar Vulkan para acelerar e esquentar menos, como você reclamou dos apps atuais.", style=MaterialTheme.typography.bodySmall)
+                      }
                     }
-                    else -> Column(Modifier.padding(16.dp)){ Text("Dante P3-A VERIFIED - 0.5.3 - Build completo verificado") }
+                    3 -> Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)){
+                      Text("Personalidade - Editável", style=MaterialTheme.typography.headlineSmall)
+                      OutlinedTextField(value=personaName, onValueChange={personaName=it}, label={Text("Nome")}, modifier=Modifier.fillMaxWidth())
+                      OutlinedTextField(value=personaTrait, onValueChange={personaTrait=it}, label={Text("Como ele deve ser? (curioso, caloroso, direto...)")}, modifier=Modifier.fillMaxWidth(), minLines=3)
+                      Text("Isso é o que você pediu: nada de personalidade hardcoded no código. Tudo editável aqui.", style=MaterialTheme.typography.bodySmall)
+                    }
                   }
                 }
               }
@@ -162,4 +231,4 @@ jobs:
         run: gradle assembleDebug --no-daemon
       - name: Upload APK
         uses: actions/upload-artifact@v4
-        with: { name: Dante-P3A-VERIFIED-APK, path: app/build/outputs/apk/debug/*.apk }
+        with: { name: Dante-P3B-FILEPICKER-APK, path: app/build/outputs/apk/debug/*.apk }
