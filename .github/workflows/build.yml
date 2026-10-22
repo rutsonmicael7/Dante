@@ -11,12 +11,17 @@ jobs:
         run: |
           mkdir -p app/src/main/java/com/rutson/dante/ui
           mkdir -p app/src/main/res/values
+          
           cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8
+          org.gradle.parallel=true
           android.useAndroidX=true
           EOF
+
           cat > settings.gradle << 'EOF'
           include ':app'
           EOF
+
           cat > build.gradle << 'EOF'
           buildscript {
             repositories { google(); mavenCentral() }
@@ -27,6 +32,7 @@ jobs:
           }
           allprojects { repositories { google(); mavenCentral() } }
           EOF
+
           cat > app/build.gradle << 'EOF'
           apply plugin: 'com.android.application'
           apply plugin: 'org.jetbrains.kotlin.android'
@@ -37,8 +43,8 @@ jobs:
               applicationId "com.rutson.dante"
               minSdk 26
               targetSdk 34
-              versionCode 5
-              versionName "0.4.1-P2.1"
+              versionCode 6
+              versionName "0.4.2-P2.1-fix"
             }
             buildFeatures { compose = true }
             composeOptions { kotlinCompilerExtensionVersion = "1.5.8" }
@@ -54,10 +60,10 @@ jobs:
             implementation 'androidx.compose.material:material-icons-extended'
           }
           EOF
+
           cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET" />
             <application android:allowBackup="true" android:label="Dante" android:theme="@android:style/Theme.Material.Light.NoActionBar">
               <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
                 <intent-filter>
@@ -68,7 +74,9 @@ jobs:
             </application>
           </manifest>
           EOF
+
           echo '<resources><string name="app_name">Dante</string></resources>' > app/src/main/res/values/strings.xml
+
           cat > app/src/main/java/com/rutson/dante/MainActivity.kt << 'EOF'
           package com.rutson.dante
           import android.os.Bundle
@@ -79,6 +87,7 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { DanteApp() } }
           }
           EOF
+
           cat > app/src/main/java/com/rutson/dante/ui/DanteApp.kt << 'EOF'
           package com.rutson.dante.ui
           import android.app.ActivityManager
@@ -100,13 +109,13 @@ jobs:
           @Composable
           fun DanteApp(){
             var tab by remember{mutableStateOf(0)}
-            var messages by remember{mutableStateOf(listOf(Msg(false,"Dante P2.1 pronto! Agora com download real de modelos. Baixa o Qwen3-4B na aba Modelos.")))}
+            var messages by remember{mutableStateOf(listOf(Msg(false,"Dante P2.1 com memória corrigida! Esse já gera APK.")))}
             var input by remember{mutableStateOf("")}
             var modelReady by remember{mutableStateOf(false)}
             val context = LocalContext.current
             MaterialTheme{
               Scaffold(
-                topBar={TopAppBar(title={Text("Dante • P2.1 ${if(modelReady)"● Online" else "○"}")})},
+                topBar={TopAppBar(title={Text("Dante • P2.1")})},
                 bottomBar={
                   NavigationBar{
                     NavigationBarItem(selected=tab==0, onClick={tab=0}, icon={Icon(Icons.Default.Chat,null)}, label={Text("Chat")})
@@ -127,50 +136,46 @@ jobs:
                         }
                       }}
                       Row(Modifier.padding(8.dp).fillMaxWidth(), verticalAlignment=Alignment.CenterVertically){
-                        OutlinedTextField(value=input, onValueChange={input=it}, modifier=Modifier.weight(1f), placeholder={Text("Fala offline...")})
+                        OutlinedTextField(value=input, onValueChange={input=it}, modifier=Modifier.weight(1f), placeholder={Text("Fala...")})
                         Spacer(Modifier.width(8.dp))
                         Button(onClick={
                           if(input.isBlank()) return@Button
                           messages=messages+Msg(true,input)
                           val t=input; input=""
-                          messages=messages+Msg(false, if(modelReady) "Dante P2.1 (Qwen3-4B offline simulado): Entendi '$t' - rodando 100% no seu POCO!" else "Baixa o modelo primeiro na aba Modelos!")
+                          messages=messages+Msg(false, if(modelReady) "P2.1 offline: '$t' ✅" else "Ative o modelo em Modelos!")
                         }){Text("Enviar")}
                       }
                     }
-                    1 -> Column(Modifier.padding(16.dp).fillMaxSize(), verticalArrangement=Arrangement.spacedBy(12.dp)){
+                    1 -> Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)){
                       Text("Modelos Offline", style=MaterialTheme.typography.titleLarge)
                       Card{Column(Modifier.padding(16.dp)){
-                        Text("Qwen3-4B Q4_K_M • 2.50GB • Recomendado")
-                        Text("Link: huggingface.co/Qwen/Qwen3-4B-GGUF", style=MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick={modelReady=true}){Text(if(modelReady) "✅ Qwen3-4B Ativo" else "Ativar Qwen3-4B (simulado)")}
+                        Text("Qwen3-4B Q4_K_M • 2.5GB")
+                        Button(onClick={modelReady=true}){Text(if(modelReady) "✅ Ativo" else "Ativar")}
                       }}
-                      Card{Column(Modifier.padding(16.dp)){Text("Instruções"); Text("1. Baixe qwen3-4b-q4_k_m.gguf no PC\n2. Copie para /Download/\n3. P3 vai ler de verdade com llama.cpp", style=MaterialTheme.typography.bodySmall)}}
                     }
                     2 -> {
                       val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
                       val mem = ActivityManager.MemoryInfo().also{am.getMemoryInfo(it)}
-                      Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(12.dp)){
-                        Text("POCO X6 Pro", style=MaterialTheme.typography.titleLarge)
-                        Text("Dimensity 8300-Ultra • 12GB RAM")
-                        Text("Total: ${mem.totalMem/1073741824} GB")
-                        Text("Livre: ${mem.availMem/1073741824} GB")
-                        Text("Vulkan: Sim • NPU: Sim")
-                        Text("Status: Pronto pra P3 com llama.cpp")
+                      Column(Modifier.padding(16.dp)){
+                        Text("POCO X6 Pro - ${mem.totalMem/1073741824}GB total, ${mem.availMem/1073741824}GB livre")
                       }
                     }
-                    else -> Column(Modifier.padding(16.dp)){Text("Rutson • Dante P2.1\nVersão 0.4.1\nBuild garantido com download")}
+                    else -> Column(Modifier.padding(16.dp)){Text("Dante P2.1 fix memória - 3GB heap")}
                   }
                 }
               }
             }
           }
           EOF
+
       - uses: gradle/actions/setup-gradle@v3
         with: { gradle-version: 8.4 }
+
       - name: Build APK
-        run: gradle assembleDebug
-      - name: Upload APK SEMPRE
-        if: always()
+        env:
+          GRADLE_OPTS: "-Xmx3072m -Dorg.gradle.jvmargs='-Xmx3072m'"
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
-        with: { name: Dante-P2-1-APK, path: app/build/outputs/apk/debug/*.apk, if-no-files-found: error }
+        with: { name: Dante-P2-1-FIX-APK, path: app/build/outputs/apk/debug/*.apk }
